@@ -9,10 +9,10 @@
 % and excel files.
 
 clear
-% declare some variables
+%% declare some variables
 % specify path and name for xls-Table containing temperature data in work sheet "sheet_name"
-temp_filename='Daten Tiere & Recordings.xlsx'
-sheet_name='KlimaLoggPro'; 
+temp_filename="D:\Recordings\Sarah Trummer\Daten Tiere & Recordings.xlsx";
+sheet_name='KlimaLoggPro';
 
 start_freq=500; % high-pass or or lower band-pass filter frequency in Hz
 Qs_=[-3]; % dB values for Q. Take Q -3 and -10 dB below max frequency peak

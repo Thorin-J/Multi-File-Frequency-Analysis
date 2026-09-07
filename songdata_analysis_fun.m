@@ -14,17 +14,17 @@ numFiles = length(filenames);
 % open each wave file, read in the chunks from startTime to endTime and perform a signal analysis
 for i = 1:numFiles
     % Construct the full file path
-    wav_info=audioinfo(filenames{i});
+    wav_info=audioinfo(fullfile(path1, filenames{i}));
     fs(i)=wav_info.SampleRate; % sample rate of sound file
     FFT.fs=fs(i);
     % create start and stop samples from table data for each file
     s_start{i}=round(data_table.start_time(idx_n==i).*fs(i));
     s_stop{i}=round(data_table.end_time(idx_n==i).*fs(i));
-    
+
 
     for j = 1:length(s_start{i})
         % Read the audio data from the specified time range
-        [amp_data, ~]=audioread(filenames{i}, [s_start{i}(j), s_stop{i}(j)]);
+        [amp_data, ~]=audioread(fullfile(path1, filenames{i}), [s_start{i}(j), s_stop{i}(j)]);
 
         % Perform signal analysis
         % normalise amp_data
@@ -217,27 +217,53 @@ else
 end
 
 %% once saved, format some columns and rows for better readability of xlsx table
+% determine OS locale
+% Get language code (e.g., 'de' or 'en')
+lang=char(java.util.Locale.getDefault().getLanguage());
+% Get country code (e.g., 'DE' or 'US')
+country=char(java.util.Locale.getDefault().getCountry());
+
 % open Excel via COM
 excel=actxserver('Excel.Application');
 workbook=excel.Workbooks.Open(save_name);
 sheet=workbook.Sheets.Item(1);
-% apply formatting
+if strcmp(lang, 'de')
+    disp('System is German. Customizing code for German locale...');
+    sheet.Columns.Item('B').NumberFormat='0,000'; % number, 3 decimals
+    sheet.Columns.Item('C').NumberFormat='0,000';
+    sheet.Columns.Item('G').NumberFormat='0,0000';
+    sheet.Columns.Item('H').NumberFormat='0,0000';
+    sheet.Columns.Item('I').NumberFormat='0,000';
+    sheet.Columns.Item('J').NumberFormat='0,000';
+    sheet.Columns.Item('M').NumberFormat='0,00';
+    sheet.Columns.Item('N').NumberFormat='0,00';
+    sheet.Columns.Item('P').NumberFormat='0,00';
+    sheet.Columns.Item('Q').NumberFormat='0,00';
+    sheet.Columns.Item('S').NumberFormat='0,00';
+    sheet.Columns.Item('T').NumberFormat='0,00';
+    sheet.Columns.Item('U').NumberFormat='0,000';
+    sheet.Columns.Item('V').NumberFormat='0';
+    sheet.Columns.Item('W').NumberFormat='0,00';
+else
+    disp('System is US/Global. Using standard parameters...');
+    sheet.Columns.Item('B').NumberFormat='0.000'; % number, 3 decimals
+    sheet.Columns.Item('C').NumberFormat='0.000';
+    sheet.Columns.Item('G').NumberFormat='0.0000';
+    sheet.Columns.Item('H').NumberFormat='0.0000';
+    sheet.Columns.Item('I').NumberFormat='0.000';
+    sheet.Columns.Item('J').NumberFormat='0.000';
+    sheet.Columns.Item('M').NumberFormat='0.00';
+    sheet.Columns.Item('N').NumberFormat='0.00';
+    sheet.Columns.Item('P').NumberFormat='0.00';
+    sheet.Columns.Item('Q').NumberFormat='0.00';
+    sheet.Columns.Item('S').NumberFormat='0.00';
+    sheet.Columns.Item('T').NumberFormat='0.00';
+    sheet.Columns.Item('U').NumberFormat='0.000';
+    sheet.Columns.Item('V').NumberFormat='0';
+    sheet.Columns.Item('W').NumberFormat='0.00';
+end
+% apply other formatting
 sheet.Columns.Item('A').NumberFormat='@'; % text
-sheet.Columns.Item('B').NumberFormat='0.000'; % number, 3 decimals
-sheet.Columns.Item('C').NumberFormat='0.000';
-sheet.Columns.Item('G').NumberFormat='0.0000';
-sheet.Columns.Item('H').NumberFormat='0.0000';
-sheet.Columns.Item('I').NumberFormat='0.000';
-sheet.Columns.Item('J').NumberFormat='0.000';
-sheet.Columns.Item('M').NumberFormat='0.00';
-sheet.Columns.Item('N').NumberFormat='0.00';
-sheet.Columns.Item('P').NumberFormat='0.00';
-sheet.Columns.Item('Q').NumberFormat='0.00';
-sheet.Columns.Item('S').NumberFormat='0.00';
-sheet.Columns.Item('T').NumberFormat='0.00';
-sheet.Columns.Item('U').NumberFormat='0.000';
-sheet.Columns.Item('V').NumberFormat='0';
-sheet.Columns.Item('W').NumberFormat='0.00';
 sheet.Rows.Item(1).Font.Bold = true; % first row in bold
 % save & clean up
 workbook.Save;
