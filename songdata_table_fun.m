@@ -101,8 +101,8 @@ data_table.group_dur(data_table.group_dur==0)=NaN;
 pat='^([^_]+_[^_]+_[^_]+)'; % match three groups of non-underscores separated by _
 tok=regexp(data_table.filename(1), pat, 'tokens');
 animal_id=tok{1};
-mat_savename=fullfile(path1, strcat(animal_id, '_song_data.mat'));
-xls_savename=fullfile(path1, strcat(animal_id, '_song_data.xlsx'));
+mat_savename=fullfile(path1, strcat(animal_id, '_songdata.mat'));
+xls_savename=fullfile(path1, strcat(animal_id, '_songdata.xlsx'));
 
 save(mat_savename, 'data_table', 'labels', 'wav_info');
 % move filename variable for xls table
