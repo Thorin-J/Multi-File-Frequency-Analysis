@@ -11,12 +11,12 @@
 clear
 %% declare some variables
 % specify path and name for xls-Table containing temperature data in work sheet "sheet_name"
-temp_filename="D:\Recordings\Sarah Trummer\Daten Tiere & Recordings.xlsx";
+temp_filename="Daten Tiere & Recordings.xlsx";
 sheet_name='KlimaLoggPro';
 
 start_freq=500; % high-pass or or lower band-pass filter frequency in Hz
 Qs_=[-3]; % dB values for Q. Take Q -3 and -10 dB below max frequency peak
-nfft=1024; %size of FFT in number of samples. Choose from '512', '1024', '2048', '4096' or '8192'
+nfft=2048; %size of FFT in number of samples. Choose from '512', '1024', '2048', '4096' or '8192'
 win_length=256; % window length in samples
 ol=50; % overlap in percent
 
