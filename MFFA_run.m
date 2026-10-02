@@ -1,6 +1,6 @@
 % Multi-File Frequency Analysis for bush-cricket songs
-% reads all wave files in a given folder, extracts cool edit or avisoft cues and labels (only
-% avisoft labels are currently used) delineating song parts to be analysed. Labeled sections have to
+% Reads all wave files in a given folder, extracts cool edit or Avisoft cues and labels (only
+% Avisoft labels are currently used) delineating song parts to be analysed. Labeled sections have to
 % contain pulse and group numbers. On the basis of this information, pulse durations, intervals,
 % group durations and intervals are calculated. An FFT is performed for each labeled pulse/section
 % and peak frequencies and amplitudes for the first three peaks are extracted, together with Q for 

@@ -1,8 +1,8 @@
 function [data_table]=songdata_table_fun(file_list, temp_filename, sheet_name, path1)
-% Read Avisoft label information from all wave files in a given directory and collate data in a
+% read avisoft label information from all wave files in a given directory and collate data in a
 % table
 % Avisoft labels are assumed to contain label start and end times, pulse and group numbers
-% Temperature data is read from given sheet in specified Excel file
+% Temperature data is read from given sheet in specified excel file
 
 %% cycle through each wave-file and extract label data
 var_names={'start_time', 'end_time', 'pulse_n', 'group_n', 'group_pn', 'filename'};
@@ -81,7 +81,7 @@ for i = 1:length(ind_files)
         % Convert to datetime for matching
         fileDate = datetime([fileDate, fileTime], 'InputFormat', 'ddMMyyHHmm');
         % Find matching temperature data (with a tolerance of 7.5 minutes
-        matchingRow=datefind(fileDate, t_data.Date, 1/24/8);
+        matchingRow=datefind(fileDate, t_data.Date, 1/24/4);
         if any(matchingRow)
             data_table.temp(idx_n==i)=t_data.temp(matchingRow);
             % data_table.RH(idx_n==i)=t_data.RH(matchingRow);

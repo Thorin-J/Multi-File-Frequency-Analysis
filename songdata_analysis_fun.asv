@@ -1,6 +1,6 @@
 function [data_table, ffts, fft_settings]=songdata_analysis_fun(data_table, start_freq, Qs_, nfft, win_length, ol, path1)
 % Song data frequency analysis
-% For use with animal songs analysed with Avisoft. Uses data_table output from songdata_table_fun.m
+% For use with animal songs analysed with AviSoft. Uses data_table output from songdata_table_fun.m
 % start_freq    = high-pass or or lower band-pass filter frequency in Hz
 % Qs_           = dB values for Q. e.g. [-3, -10] dB below max frequency peak
 % nfft          = size of FFT in number of samples. Choose from 512, 1024, 2048, 4096 or 8192
@@ -227,10 +227,13 @@ sheet=workbook.Sheets.Item(1);
 %   xlDecimalSeparator = 3
 %   xlThousandsSeparator = 4
 decimalSep=excel.International(3); % returns '.' or ','
-% (optional) if "Use system separators" setting in Excel is OFF, Excel.DecimalSeparator holds the character in use
+
+% (optional) if "Use system separators" setting in Excel is OFF
 if ~excel.UseSystemSeparators
+    % then Excel.DecimalSeparator holds the character in use
     decimalSep = excel.DecimalSeparator;
 end
+
 fprintf('Excel uses "%s" as the decimal separator\nCustomising tables accordingly!\n',decimalSep);
 
 % % Get language code (e.g., 'de' or 'en')
@@ -273,7 +276,6 @@ elseif strcmp(decimalSep, '.')
 else
     warning('Unrecognized decimal separator "%s"; numeric formatting skipped.', decimalSep);
 end
-
 % apply other formatting
 sheet.Columns.Item('A').NumberFormat='@'; % text
 sheet.Rows.Item(1).Font.Bold = true; % first row in bold
