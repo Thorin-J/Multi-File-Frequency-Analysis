@@ -1,3 +1,5 @@
+*.x*
+*.son
 *.mat
 *.wav
 *.jpg
