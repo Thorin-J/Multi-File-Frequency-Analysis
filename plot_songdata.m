@@ -11,13 +11,17 @@ end
 
 load(fullfile(path1, filename));
 
+% take the biggest table in the workspace and rename it to data_table (necessary when designation of
+% data_table changes in other scripts)
+workspaceVariables=whos;
+tableVariables=workspaceVariables(strcmp({workspaceVariables.class}, 'table'));
+[~, idx]=max([tableVariables.bytes]);
+data_table=eval(tableVariables(idx).name);
+clear(tableVariables(idx).name);
+
 % check if first file in data_table can be found in path1, otherwise prompt user to specify
 % different directory for files
 fname_temp=data_table.filename(1);
-% get animal ID from filename
-pat='^([^_]+_[^_]+_[^_]+)'; % match three groups of non-underscores separated by _
-tok=regexp(fname_temp, pat, 'tokens');
-animal_id=tok{1}{1};
 if ~exist(fullfile(path1, fname_temp), "file")
     h=warndlg(sprintf(['Sound files do not exist in current directory!\n' ...
         'Please specify directory containing .wav files for %s.'], animal_id));
@@ -37,11 +41,24 @@ else
     file_path=path1;
 end
 
+%% get individual animals in .mat file and ask which one is to be used
+% get unique animal IDs from filenames
+pat='^([^_]+_[^_]+_[^_]+)'; % match three groups of non-underscores separated by _
+[ind_files]=unique(data_table.filename);
+tok=regexp(ind_files, pat, 'tokens'); % extract animals names from file names
+animal_ids=[tok{:}]; % animal IDs
+animal_ids=cellfun(@char, [animal_ids{:}], 'UniformOutput',false);
+animal_ids=unique(animal_ids); % unique animal identifiers
+% select individual and restrict data
+choice=listdlg('PromptString', 'Select animal to analyse:', 'SelectionMode', 'single', ...
+    'ListString', animal_ids);
+sel_id=animal_ids{choice};
+
 %% ask user if they want to analyse individual pulses or complete group of pulses
 choice=questdlg('Do you want to analyze individual pulses or a complete group of pulses?', ...
     'Analysis Choice', 'Individual Pulses', 'Complete Groups', 'Individual Pulses');
 if strcmp(choice, 'Individual Pulses')
-    p_temp=inputdlg('Specify row number(s) of pulse(s) to analyse', 'Input row numbers', 1, "1, 5-10")
+    p_temp=inputdlg('Specify Excel row number(s) of pulse(s) to analyse', 'Input row numbers', 1, "2, 5-10")
     % convert input strings to numeric arrays; input separated by ',' are individual pulses, input
     % separated by '-' are arrays from x to y
     p_temp=split(p_temp, ',');
@@ -57,7 +74,7 @@ if strcmp(choice, 'Individual Pulses')
     end
     pulses=[pulses{:}];
 else
-    g_temp=inputdlg('Specify starting row number(s) of group(s) to analyse', 'Input row numbers', 1, "5, 14, 18-26")
+    g_temp=inputdlg('Specify Excel starting row number(s) of group(s) to analyse', 'Input row numbers', 1, "5, 14, 18-26")
     g_temp=split(g_temp, ',');
     g_temp=strip(g_temp, 'both', ' ');
     groups={};
@@ -73,9 +90,10 @@ else
 end
 
 %% Analyse individual pulses
+r_offset=find(startsWith(data_table.filename, sel_id), 1, "first");
 if strcmp(choice, 'Individual Pulses')
     for i=1:length(pulses)
-        p_idx=pulses(i);
+        p_idx=pulses(i)+r_offset-2; % -1 to account for header row in Excel
         fs=ffts{p_idx}.fs; % sampling rate
         start_idx=round(data_table.start_time(p_idx)*fs);
         stop_idx=round(data_table.end_time(p_idx)*fs);
@@ -112,7 +130,7 @@ if strcmp(choice, 'Individual Pulses')
     end
 else % plot whole groups
     for i=1:length(groups)
-        g_idx=groups(i);
+        g_idx=groups(i)+r_offset-2; % -1 to account for header row in Excel
         if data_table.group_pn(g_idx)==1 % check if given row is group start
             fs=ffts{g_idx}.fs; % sampling rate
             start_idx=round(data_table.start_time(g_idx)*fs); % start of group
