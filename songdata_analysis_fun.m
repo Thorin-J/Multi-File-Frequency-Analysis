@@ -181,47 +181,76 @@ for i = 1:length(ffts_lin)
 end
 
 %% save data as new xlsx table and mat file
-% get animal id
+% get animal identifier(s) and separate data into xlsx-files (one file for each species, with
+% individual sheets for individuals
 pat='^([^_]+_[^_]+_[^_]+)'; % match three groups of non-underscores separated by _
-tok=regexp(data_table.filename(1), pat, 'tokens');
-animal_id=tok{1}{1};
+[ind_files]=unique(data_table.filename);
+tok=regexp(ind_files, pat, 'tokens'); % extract animals names from file names
+animal_ids=[tok{:}]; % animal IDs
+animal_ids=cellfun(@char, [animal_ids{:}], 'UniformOutput',false);
+animal_ids=unique(animal_ids); % unique animal identifiers
 
-save_name = fullfile(path1, [animal_id '_songdata_fft.xlsx']);
-% check if save name already exists and ask if file should be overwritten
-if isfile(save_name)
-    choice = questdlg('.xlsx file already exists. Overwrite?', 'File Exists', 'Yes', 'No', 'No');
-    if strcmp(choice, 'No')
-        [new_name, new_path]=uiputfile('*.xlsx', 'Save as');
-        writetable(data_table, fullfile(new_path, new_name), 'Sheet', strcat(animal_id, '_FFT'));
-    else
-        writetable(data_table, save_name, 'Sheet', strcat(animal_id, '_FFT'));
-    end
-else
-    writetable(data_table, save_name, 'Sheet', strcat(animal_id, '_FFT'));
-end
+pat2='^([^_]+_[^_]+)';
+spec_ids=regexp(ind_files, pat2, 'tokens');
+spec_ids=cellfun(@char, [spec_ids{:}], 'UniformOutput',false);
+spec_ids=unique(spec_ids); % unique species identifiers
 
-mat_save_name=[save_name(1:end-4) 'mat'];
-ffts=ffts_lin; % rename ffts_lin for saving
-fft_settings=struct('start_freq', start_freq, 'nfft', nfft, 'win_length', win_length, 'ol', ol);
-% check if save name already exists and ask if file should be overwritten
-if isfile(mat_save_name)
-    choice = questdlg('.mat file already exists. Overwrite?', 'File Exists', 'Yes', 'No', 'No');
-    if strcmp(choice, 'No')
-        [new_name, new_path]=uiputfile('*.mat', 'Save as');
-        save(fullfile(new_path, new_name), 'data_table', 'ffts', 'fft_settings', '-mat');
-    else
-        save(mat_save_name, 'data_table', 'ffts', 'fft_settings', '-mat')
+% cycle through species and save *.xlsx and *.mat files
+xl_filenames=cell(length(spec_ids),1);
+for i=1:length(spec_ids)
+  % prepare data to be saved for current species
+    spec_mask=startsWith(data_table.filename, spec_ids{i});
+    species_table=data_table(spec_mask, :);
+   
+    save_name = fullfile(path1, [spec_ids{i} '_songdata_fft.xlsx']);
+    % check if save name already exists and ask if file should be overwritten
+    if isfile(save_name)
+        [~, f_name, ext]=fileparts(save_name);
+        choice = questdlg(sprintf('File "%s" already exists. Overwrite?', [f_name ext]),...
+            'File Exists', 'Yes', 'No', 'No');
+        if strcmp(choice, 'No')
+            [save_name, new_path]=uiputfile('*.xlsx', 'Save as');
+            save_name=fullfile(new_path, save_name);
+        end
     end
-else
-    save(mat_save_name, 'data_table', 'ffts', 'fft_settings', '-mat')
+    % save each individual as separate workbook sheet
+    temp_ids=find(startsWith(string(animal_ids), spec_ids{i}));
+    for j=1:length(temp_ids)
+        id_mask=startsWith(species_table.filename, animal_ids{temp_ids(j)});
+        writetable(species_table(id_mask,:), save_name, 'Sheet', strcat(animal_ids{temp_ids(j)}, '_FFT'));
+    end
+
+    mat_save_name=[save_name(1:end-4) 'mat'];
+    ffts=ffts_lin(spec_mask); % rename ffts_lin for current species for saving
+    % ffts have a data_table_idx to relate back to the actual entry in data_table. Change this, so
+    % it points to the correct entry in spec_table
+    idx_start=find(spec_mask, 1, 'first');
+    if idx_start~=1
+        new_idx=num2cell(1:sum(spec_mask));
+        ffts=cellfun(@(st,n) setfield(st,'data_table_idx',n), ffts, new_idx, ...
+            'UniformOutput',false);
+    end
+    fft_settings=struct('start_freq', start_freq, 'nfft', nfft, 'win_length', win_length, 'ol', ol);
+
+    % check if save name already exists and ask if file should be overwritten
+    if isfile(mat_save_name)
+         [~, f_name, ext]=fileparts(mat_save_name);
+        choice = questdlg(sprintf('File "%s" already exists. Overwrite?', [f_name ext]),...
+            'File Exists', 'Yes', 'No', 'No');
+        if strcmp(choice, 'No')
+            [mat_save_name, new_path]=uiputfile('*.mat', 'Save as');
+            mat_save_name=fullfile(new_path, mat_save_name);
+        end
+    end
+    save(mat_save_name, 'species_table', 'ffts', 'fft_settings', '-mat');
+
+    % list of used xlsx file names
+    xl_filenames{i}=save_name;
 end
 
 %% once saved, format some columns and rows for better readability of xlsx table
 % open Excel via COM
 excel=actxserver('Excel.Application');
-workbook=excel.Workbooks.Open(save_name);
-sheet=workbook.Sheets.Item(1);
-
 % determine decimal separator used by Excel. Get the decimal‐separator from the International collection
 % The XlApplicationInternational enumeration has
 %   xlDecimalSeparator = 3
@@ -233,52 +262,57 @@ if ~excel.UseSystemSeparators
 end
 fprintf('Excel uses "%s" as the decimal separator\nCustomising tables accordingly!\n',decimalSep);
 
-% % Get language code (e.g., 'de' or 'en')
-% lang=char(java.util.Locale.getDefault().getLanguage());
-% % Get country code (e.g., 'DE' or 'US')
-% country=char(java.util.Locale.getDefault().getCountry());
+% cycle through files and sheets
+for i=1:length(xl_filenames)
+    workbook=excel.Workbooks.Open(xl_filenames{i});
+    n_sheets=workbook.Sheets.Count;
 
-if strcmp(decimalSep, ',')
-    sheet.Columns.Item('B').NumberFormat='0,000'; % number, 3 decimals
-    sheet.Columns.Item('C').NumberFormat='0,000';
-    sheet.Columns.Item('G').NumberFormat='0,0000';
-    sheet.Columns.Item('H').NumberFormat='0,0000';
-    sheet.Columns.Item('I').NumberFormat='0,000';
-    sheet.Columns.Item('J').NumberFormat='0,000';
-    sheet.Columns.Item('M').NumberFormat='0,00';
-    sheet.Columns.Item('N').NumberFormat='0,00';
-    sheet.Columns.Item('P').NumberFormat='0,00';
-    sheet.Columns.Item('Q').NumberFormat='0,00';
-    sheet.Columns.Item('S').NumberFormat='0,00';
-    sheet.Columns.Item('T').NumberFormat='0,00';
-    sheet.Columns.Item('U').NumberFormat='0,000';
-    sheet.Columns.Item('V').NumberFormat='0';
-    sheet.Columns.Item('W').NumberFormat='0,00';
-elseif strcmp(decimalSep, '.')
-    sheet.Columns.Item('B').NumberFormat='0.000'; % number, 3 decimals
-    sheet.Columns.Item('C').NumberFormat='0.000';
-    sheet.Columns.Item('G').NumberFormat='0.0000';
-    sheet.Columns.Item('H').NumberFormat='0.0000';
-    sheet.Columns.Item('I').NumberFormat='0.000';
-    sheet.Columns.Item('J').NumberFormat='0.000';
-    sheet.Columns.Item('M').NumberFormat='0.00';
-    sheet.Columns.Item('N').NumberFormat='0.00';
-    sheet.Columns.Item('P').NumberFormat='0.00';
-    sheet.Columns.Item('Q').NumberFormat='0.00';
-    sheet.Columns.Item('S').NumberFormat='0.00';
-    sheet.Columns.Item('T').NumberFormat='0.00';
-    sheet.Columns.Item('U').NumberFormat='0.000';
-    sheet.Columns.Item('V').NumberFormat='0';
-    sheet.Columns.Item('W').NumberFormat='0.00';
-else
-    warning('Unrecognized decimal separator "%s"; numeric formatting skipped.', decimalSep);
-end
+    for j=1:n_sheets
+        sheet=workbook.Sheets.Item(j);
 
-% apply other formatting
-sheet.Columns.Item('A').NumberFormat='@'; % text
-sheet.Rows.Item(1).Font.Bold = true; % first row in bold
-% save & clean up
-workbook.Save;
-workbook.Close(false);
+        if strcmp(decimalSep, ',')
+            sheet.Columns.Item('B').NumberFormat='0,000'; % number, 3 decimals
+            sheet.Columns.Item('C').NumberFormat='0,000';
+            sheet.Columns.Item('G').NumberFormat='0,0000';
+            sheet.Columns.Item('H').NumberFormat='0,0000';
+            sheet.Columns.Item('I').NumberFormat='0,000';
+            sheet.Columns.Item('J').NumberFormat='0,000';
+            sheet.Columns.Item('M').NumberFormat='0,00';
+            sheet.Columns.Item('N').NumberFormat='0,00';
+            sheet.Columns.Item('P').NumberFormat='0,00';
+            sheet.Columns.Item('Q').NumberFormat='0,00';
+            sheet.Columns.Item('S').NumberFormat='0,00';
+            sheet.Columns.Item('T').NumberFormat='0,00';
+            sheet.Columns.Item('U').NumberFormat='0,000';
+            sheet.Columns.Item('V').NumberFormat='0';
+            sheet.Columns.Item('W').NumberFormat='0,00';
+        elseif strcmp(decimalSep, '.')
+            sheet.Columns.Item('B').NumberFormat='0.000'; % number, 3 decimals
+            sheet.Columns.Item('C').NumberFormat='0.000';
+            sheet.Columns.Item('G').NumberFormat='0.0000';
+            sheet.Columns.Item('H').NumberFormat='0.0000';
+            sheet.Columns.Item('I').NumberFormat='0.000';
+            sheet.Columns.Item('J').NumberFormat='0.000';
+            sheet.Columns.Item('M').NumberFormat='0.00';
+            sheet.Columns.Item('N').NumberFormat='0.00';
+            sheet.Columns.Item('P').NumberFormat='0.00';
+            sheet.Columns.Item('Q').NumberFormat='0.00';
+            sheet.Columns.Item('S').NumberFormat='0.00';
+            sheet.Columns.Item('T').NumberFormat='0.00';
+            sheet.Columns.Item('U').NumberFormat='0.000';
+            sheet.Columns.Item('V').NumberFormat='0';
+            sheet.Columns.Item('W').NumberFormat='0.00';
+        else
+            warning('Unrecognized decimal separator "%s"; numeric formatting skipped.', decimalSep);
+        end
+
+        % apply other formatting
+        sheet.Columns.Item('A').NumberFormat='@'; % text
+        sheet.Rows.Item(1).Font.Bold = true; % first row in bold
+    end
+        % save & clean up
+        workbook.Save;
+        workbook.Close(false);
+   end
 excel.Quit;
 excel.delete;

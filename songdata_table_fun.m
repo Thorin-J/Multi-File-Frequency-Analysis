@@ -95,18 +95,42 @@ end
 data_table.group_int(data_table.group_int==0)=NaN;
 data_table.pulse_int(data_table.pulse_int==0)=NaN;
 data_table.group_dur(data_table.group_dur==0)=NaN;
+% move filename variable to beginning of table
+data_table=movevars(data_table, "filename", Before="start_time");
 
 %% save data
-% get animal identifier
+% get animal identifier(s) and separate data into xlsx-files (one file for each species, with
+% individual sheets for individuals
 pat='^([^_]+_[^_]+_[^_]+)'; % match three groups of non-underscores separated by _
-tok=regexp(data_table.filename(1), pat, 'tokens');
-animal_id=tok{1};
-mat_savename=fullfile(path1, strcat(animal_id, '_songdata.mat'));
-xls_savename=fullfile(path1, strcat(animal_id, '_songdata.xlsx'));
+tok=regexp(ind_files, pat, 'tokens'); % extract animals names from file names
+animal_ids=[tok{:}]; % animal IDs
+animal_ids=cellfun(@char, [animal_ids{:}], 'UniformOutput',false);
+animal_ids=unique(animal_ids); % unique animal identifiers
 
-save(mat_savename, 'data_table', 'labels', 'wav_info');
-% move filename variable for xls table
-data_table=movevars(data_table, "filename", Before="start_time");
-writetable(data_table, xls_savename, 'Sheet', animal_id);
+pat2='^([^_]+_[^_]+)';
+spec_ids=regexp(ind_files, pat2, 'tokens');
+spec_ids=cellfun(@char, [spec_ids{:}], 'UniformOutput',false);
+spec_ids=unique(spec_ids); % unique species identifiers
 
+temp_data_table=data_table; % stupid workaround to save species table as "data_table" in each .mat file
+for i=1:length(spec_ids)
+    spec_name=spec_ids{i};
+    mat_savename=fullfile(path1, strcat(spec_name, '_songdata.mat'));
+    xls_savename=fullfile(path1, strcat(spec_name, '_songdata.xlsx'));
+    % prepare data to be saved for current species
+    spec_mask=startsWith(data_table.filename, spec_name);
+    species_table=data_table(spec_mask, :);
+    data_table=species_table;
+    % save mat file
+    save(mat_savename, 'data_table', 'labels', 'wav_info');
+    data_table=temp_data_table; % recreate original data_table
+
+    % get animal ids for the current species and save each animal per species in a separate
+    % .xlsx worksheet
+    temp_ids=find(startsWith(string(animal_ids), spec_name));
+    for j=1:length(temp_ids)
+        id_mask=startsWith(species_table.filename, animal_ids{temp_ids(j)});
+        writetable(species_table(id_mask, :), xls_savename, 'Sheet', animal_ids{temp_ids(j)});
+    end
+end
 end
